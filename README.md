@@ -21,5 +21,5 @@ installed it into their installation of LHAPDF.
 `
 source setup.sh
 make
-./InstantonGEN 13000 9000 5e-4 10000 4 testInstanton 
+./InstantonGEN 13000 50 5e-4 100 4 testInstanton
 `
