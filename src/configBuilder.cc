@@ -1,15 +1,16 @@
 #include "../include/configBuilder.h"
 #include <iostream>
-
+#include "../include/linearInterpolation.h"
 using namespace std;
+using namespace constants;
 
 float expectNg(float Q){
-  return 6.02;
+  return getLerp(Q, ENERGYPARTON, NG, LEN);
 }
 
 int sampleNg(float Q2,TRandom3 rand){
   float Q = sqrt(Q2);
-  return rand.Poisson(6.02);
+  return rand.Poisson(expectNg(Q));
 }
 
 configBuilder::configBuilder()

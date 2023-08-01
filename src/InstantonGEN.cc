@@ -21,19 +21,21 @@
 #include "../include/InstantonGEN.h"
 #include "../include/LHEWriter.h"
 #include "../include/rambo.h"
+#include "../include/linearInterpolation.h"
 #define ARGS 6
 #define MPW 5.0e-2
 
 using namespace LHAPDF;
 using namespace std;
+using namespace constants;
 
 int main(int argc, char* argv[])
 {
 
     //read arguements and do conversions and checks on them
-    if(argc != ARGS+1)
+    if(argc != ARGS+1 && argc != ARGS+2)
     {
-        cout << "InstantonGEN sqrtS threshold maxweight Nevents Nf Filename" << endl;
+        cout << "InstantonGEN sqrtS threshold maxweight Nevents Nf Filename [isWeighted (default 1)]" << endl;
         return -99;
     }
 
@@ -53,6 +55,8 @@ int main(int argc, char* argv[])
     }
 
     string ofName = string(argv[6]);
+    bool isweight = true;
+    if(argc == ARGS+2) isweight = atoi(argv[7]);
 
     //Init structures needed during generatation
     double maxwt = 0;
@@ -71,7 +75,6 @@ int main(int argc, char* argv[])
     TLorentzVector mom(0.0,0.0,0.0,thr);
     TLorentzVector u1(0.0,0.0,0.0,0.0);
     TLorentzVector u2(0.0,0.0,0.0,0.0);
-    vector<double> masses;
 
     double weight = 0.0;
 
@@ -86,7 +89,7 @@ int main(int argc, char* argv[])
 
     //Init output files
     TFile *myF = new TFile((ofName+".root").c_str(),"RECREATE","Holds daughters from sphaleron decay");
-    LHEWriter lheF(ofName, SQRTS);
+    LHEWriter lheF(ofName, SQRTS, isweight);
 
     double minx = thr*thr/(SQRTS*SQRTS);
 
@@ -193,11 +196,14 @@ int main(int argc, char* argv[])
                 }
                 if(mcPass) break;
             }
+            weight = getLerp(sqrt(Q2), ENERGYPARTON, XS, LEN);
+            if(weight < 0) mcPass = false;
             pdfN++;
             x1_h->Fill(x1);
             mcTot_h->Fill(mcTot);
             if(maxMCtot < mcTot) {maxMCtot = mcTot; cout << "Max MC Total: " << maxMCtot << endl;}
         }
+
 
         //Build incoming particles, sphaleron, and prepare to decay
         particle partBuf1 = partBase->getParticle(iq1);
@@ -267,7 +273,7 @@ int main(int argc, char* argv[])
         particle mother;
         mother.p4v = inParts[0].p4v + inParts[1].p4v;
         mother.mass = mother.p4v.M();
-
+        vector<double> masses;
         for(int i = 0; i < confBuf.size(); i++)
         {
             masses.push_back(confBuf[i].mass);
@@ -279,15 +285,15 @@ int main(int argc, char* argv[])
         pz = mom.Pz();
 
         //"Decay" mother to the generated configuration
-        weight = 1.0;
-        Rambo ramboGeneral(confBuf.size(),mom);
-        while(weight > MPW*rand.Uniform())
-        {
+        Rambo ramboGeneral(confBuf.size(),mom,masses,rand.GetSeed());
+        ramboGeneral.Generate();
+        //while(weight > MPW*rand.Uniform())
+        //{
             //gen.SetDecay(mom, confBuf.size(), &masses[0]);
             //weight = gen.Generate();
-            weight = ramboGeneral.Generate();
-            if(weight > MPW) cout << "The code needs to recompiled with a higher MPW" << endl;
-        }
+        //    weight = ramboGeneral.Generate();
+        //    if(weight > MPW) cout << "The code needs to recompiled with a higher MPW" << endl;
+        //}
 
         //Extract Decay 4-vectors and assign colors to non-spectator quarks
         for(int ii = 0; ii < confBuf.size(); ii++)
@@ -337,7 +343,7 @@ int main(int argc, char* argv[])
         p1x_h->Fill(x1);
         p1id_h->Fill(iq1);
 
-        lheF.writeEvent(fileParts,sqrt(Q2));
+        lheF.writeEvent(fileParts,sqrt(Q2), weight);
         myT->Fill();
         NF++;
         if(NF%(Nevt/100) == 0) cout << "Produced Event " << NF << "  pdfN : " << pdfN << endl;

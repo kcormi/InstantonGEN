@@ -3,15 +3,16 @@
 #include <math.h>
 using namespace std;
 
-LHEWriter::LHEWriter(string fName, double sqrtS)
+LHEWriter::LHEWriter(string fName, double sqrtS, bool isweight)
 {
+    string weightOption = isweight?"4":"3";
     oF.open((fName+".lhe").c_str());
     oF << std::scientific;
     oF << "<LesHouchesEvents version=\"1.0\">" << endl;
     oF << "<header>" << endl;
     oF << "</header>" << endl;
     oF << "<init>" << endl;
-    oF << "\t2212 2212 " << sqrtS/2.0 << " " << sqrtS/2.0 << " 292200 292200 292200 292200 3 1" << endl;//beam conditions information
+    oF << "\t2212 2212 " << sqrtS/2.0 << " " << sqrtS/2.0 << " 292200 292200 292200 292200 "<<weightOption<<" 1" << endl;//beam conditions information
     oF << "\t7.3 1.0 1.0 7000" << endl;//sphaleron process information
     oF << "</init>" << endl;
 }
@@ -20,11 +21,11 @@ LHEWriter::~LHEWriter()
 {
 }
 
-int LHEWriter::writeEvent(vector<particle> outParts, double Q)
+int LHEWriter::writeEvent(vector<particle> outParts, double Q, double weight)
 {
     //cout << "size check: " << decayK.size() << "\t" << decayPIDs.size() << "\t" << decayColz.size() << endl;
     oF << "<event>" << endl;
-    oF << "\t" << outParts.size() << " 7000 1 "<< Q << " 7.3e-03 0.118" << endl;
+    oF << "\t" << outParts.size() << " 7000 "<<weight<<" "<< Q << " 7.3e-03 0.118" << endl;
     for(int i = 0; i < int(outParts.size()); i++)
     {
         oF << "\t" << outParts[i].pid;

@@ -19,13 +19,14 @@
 class Rambo
 {
     public:
-        Rambo(int, TLorentzVector);
+        Rambo(int, TLorentzVector, std::vector<double>, int);
         ~Rambo();
-        double Generate();
+        void Generate();
         TLorentzVector * GetDecay(int);
-        double GetWeight(){return m_weightMassive;};
     protected:
         int num_daughter;
+        double acceptance;
+        TRandom2 rand;
         TLorentzVector m_parentMomenta;
         std::valarray<TLorentzVector> m_daughterMomenta_random;
         std::vector<TLorentzVector> m_daughterMomenta_massless;
@@ -38,6 +39,8 @@ class Rambo
         void GenerateMass();
         void CalculateWeightsMassless();
         void CalculateWeightsMassive();
+        void CalculateAcceptance();
+        void BoostDaughter();
         int fak_n(int num);
 
 };

@@ -2,39 +2,56 @@
 #include "TMath.h"
 #include <iostream>
 #include <string>
+#include <stdexcept>
+
 using namespace std;
 
-Rambo::Rambo(int n, TLorentzVector parent){
+
+
+Rambo::Rambo(int n, TLorentzVector parent, std::vector<double> masses, int seed){
     num_daughter = n;
     m_parentMomenta = parent; 
     m_daughterMassContainer.clear();
-    for(int i = 0; i < num_daughter; i++ ) m_daughterMassContainer.push_back(0.511);
+    if(num_daughter != masses.size()) throw std::invalid_argument("number of daughters and length of the mass vector do not match");
+    //else m_daughterMassContainer = masses;
+    for(int i = 0; i < num_daughter; i++ ) m_daughterMassContainer.push_back(masses[i]);
+    rand.SetSeed(seed);
 }
 
 Rambo::~Rambo(){};
 
-double Rambo::Generate(){
-    this->m_daughterMomenta_random.resize(0);
-    this->m_daughterMomenta_massless.clear();
-    this->m_daughterMomenta_massive.clear();
-    this->GenerateQ();
-    this->GenerateP();
-    this->GenerateMass();
-    this->CalculateWeightsMassless();
-    this->CalculateWeightsMassive();
-    return this->m_weightMassive;
+void Rambo::Generate(){
+    bool accept = false;
+    do{
+        this->m_daughterMomenta_random.resize(0);
+        this->m_daughterMomenta_massless.clear();
+        this->m_daughterMomenta_massive.clear();
+        this->GenerateQ();
+        this->GenerateP();
+        this->GenerateMass();
+        //this->CalculateWeightsMassless();
+        this->CalculateWeightsMassive();
+        this->CalculateAcceptance();
+        cout<<"Acceptance: "<<(this->acceptance)<<endl;
+        if( rand.Uniform(0,1) < (this->acceptance)){ 
+            accept = true;
+            cout<<"Accepted"<<endl;
+        }
+        else cout<<"Rejected"<<endl;
+    }
+    while(!accept);
+    this->BoostDaughter();
 }
 
 TLorentzVector * Rambo::GetDecay(int i){
     if(i < this->num_daughter) return &(this->m_daughterMomenta_massive[i]);
     else{
         
-        throw "Error: the requested index "+ std::to_string(i)+" goes out of the scope 0-"+std::to_string(this->num_daughter);
+        throw std::invalid_argument("Error: the requested index "+ std::to_string(i)+" goes out of the scope 0-"+std::to_string(this->num_daughter));
     }
 }
 
 void Rambo::GenerateQ(){
-    TRandom2 rand(0);
     m_daughterMomenta_random.resize(num_daughter);
     for(int i = 0; i < num_daughter; i++){
         double rho1 = rand.Uniform(0,1);
@@ -56,11 +73,11 @@ void Rambo::GenerateQ(){
 
 void Rambo::GenerateP(){
     TLorentzVector Q_mu = m_daughterMomenta_random.sum();
-    double M = std::sqrt(Q_mu.Mag2());
+    double M = Q_mu.M();
     TVector3 b = -Q_mu.Vect()*(1/M);
     double gamma = Q_mu.E()/M;
     double a = 1/( 1 + gamma );
-    double x = std::sqrt(m_parentMomenta.Mag2())/M;
+    double x = m_parentMomenta.M()/M;
     m_daughterMomenta_massless.clear();
 
     for(int i = 0; i < num_daughter; i++){
@@ -82,7 +99,7 @@ void Rambo::GenerateMass(){
 
     this->m_daughterMomenta_massive.resize(num_daughter);
     const int iterMax = 1000;
-    const double Accuracy = 1e-5;
+    const double Accuracy = 1e-7;
 
     std::valarray<double> E(num_daughter);
     std::vector<double> XM2(num_daughter);
@@ -94,7 +111,7 @@ void Rambo::GenerateMass(){
     }
 
     double XMT = 0;
-    double ET = std::sqrt(m_parentMomenta.Mag2());
+    double ET = m_parentMomenta.M();
 
     for(int i = 0; i < num_daughter; i++){
         XMT = XMT + m_daughterMassContainer[i];
@@ -118,7 +135,7 @@ void Rambo::GenerateMass(){
 
         if(fabs(F0) <= Accuracy){
            for(int i = 0; i < num_daughter; i++){
-               TLorentzVector massive(m_daughterMomenta_massless[i].Vect(),E[i]);
+               TLorentzVector massive(X*m_daughterMomenta_massless[i].Vect(),E[i]);
                this->m_daughterMomenta_massive[i] = massive;
            }
            break;
@@ -140,7 +157,7 @@ int Rambo::fak_n(int num){
 }
 
 void Rambo::CalculateWeightsMassless(){
-    double w = m_parentMomenta.E();
+    double w = m_parentMomenta.M();
     double prod1 = pow(TMath::Pi() / 2, num_daughter - 1);
     double prod2 = pow(w, 2* num_daughter - 4);
     double W_0 = (prod1 * prod2) / ((this->fak_n(num_daughter - 1)) * (this->fak_n(num_daughter - 2)));
@@ -148,7 +165,7 @@ void Rambo::CalculateWeightsMassless(){
 }
 
 void Rambo::CalculateWeightsMassive(){
-    double w = m_parentMomenta.E();
+    double w = m_parentMomenta.M();
     double sum1 = 0;
     double sum1a = 0;
     double sum1b = 0;
@@ -175,4 +192,15 @@ void Rambo::CalculateWeightsMassive(){
     double W_m = sum1 * sum2 * prod1;
 
     this->m_weightMassive = W_m;
+}
+
+void Rambo::CalculateAcceptance(){
+  this->acceptance = (this->m_weightMassive) * m_parentMomenta.M();
+}
+
+void Rambo::BoostDaughter(){
+    TVector3 v_boost = m_parentMomenta.BoostVector();
+    for(int i = 0; i < num_daughter; i++){
+        m_daughterMomenta_massive[i].Boost((v_boost));
+    }
 }
