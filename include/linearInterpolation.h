@@ -9,9 +9,14 @@ namespace constants {
   constexpr double XS[20] = {4.922e9,3.652e9,1.671e9,728.9e6,85.94e6,17.25e6,2.121e6,229.0e3,72.97e3,2.733e3,
                  235.4,6.720,0.284,0.012,5.112e-4,21.65e-6,0.9017e-6,36.45e-9,1.419e-9,52.07e-12};
   constexpr int LEN = 20;
+
 }
 #endif
 
 double Lerp(double, double, double);
 int searchInterval(double, const double [], int);
 double getLerp(double, const double[], const double [], int);
+void getCDF(double [], const double [], const double [], int);
+void getPDF(double [], const double [], const double [], int);
+double getInterpoCDF(double,const double [], const double [], const double [], int);
+double invertCDF(double, const double [], const double [], const double [], int);

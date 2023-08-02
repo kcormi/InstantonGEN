@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     //read arguements and do conversions and checks on them
     if(argc != ARGS+1 && argc != ARGS+2)
     {
-        cout << "InstantonGEN sqrtS threshold maxweight Nevents Nf Filename [isWeighted (default 1)]" << endl;
+        cout << "InstantonGEN sqrtS minMass maxweight Nevents Nf Filename [isWeighted (default 1)]" << endl;
         return -99;
     }
 
@@ -72,11 +72,11 @@ int main(int argc, char* argv[])
     vector<double> daughtersPhi;
     vector<double> daughtersE;
     vector<double> daughtersID;
-    TLorentzVector mom(0.0,0.0,0.0,thr);
+    TLorentzVector mom(0.0,0.0,0.0,0.0);
     TLorentzVector u1(0.0,0.0,0.0,0.0);
     TLorentzVector u2(0.0,0.0,0.0,0.0);
 
-    double weight = 0.0;
+    double weight = 1.0;
 
     //TGenPhaseSpace gen;
     double x1 = 0.0;
@@ -91,8 +91,30 @@ int main(int argc, char* argv[])
     TFile *myF = new TFile((ofName+".root").c_str(),"RECREATE","Holds daughters from sphaleron decay");
     LHEWriter lheF(ofName, SQRTS, isweight);
 
-    double minx = thr*thr/(SQRTS*SQRTS);
+    double CDF[LEN];
+    getCDF(&CDF[0], ENERGYPARTON, XS, LEN);
+    double XSPDF[LEN];
+    getPDF(&XSPDF[0], ENERGYPARTON, XS, LEN);
+    double CDFThr = getInterpoCDF(thr, ENERGYPARTON, CDF, XSPDF, LEN);
 
+    string massList = "Instanton mass list: ";
+    for(int i = 0; i < LEN; i++) massList += std::to_string(ENERGYPARTON[i])+"\t";
+
+    string XSList = "Instanton XS list: ";
+    for(int i = 0; i < LEN; i++) XSList += std::to_string(XS[i])+"\t";
+
+    string CDFList = "Instanton CDF list: ";
+    for(int i = 0; i < LEN; i++) CDFList += std::to_string(CDF[i])+"\t";
+
+    string PDFList = "Instanton PDF list: ";
+    for(int i = 0; i < LEN; i++) PDFList += std::to_string(XSPDF[i])+"\t";
+
+    cout<<massList<<endl;
+    cout<<XSList<<endl;
+    cout<<CDFList<<endl;
+    cout<<PDFList<<endl;
+
+    cout<<"CDFThr: "<<CDFThr<<endl;
     //Init parton distribution functions
     const PDF* LHApdf = mkPDF("CT10",0);
     //cout << LHApdf->xfxQ2(2, 0.5, SQRTS*SQRTS) << endl;
@@ -168,16 +190,25 @@ int main(int argc, char* argv[])
         double mcP = 1.1;
         bool mcPass = false;
         //Collide protons
+        double valXSCDF;
+        double x1x2;
+        double valInstMass;
+        double valx1CDF;
+        double x1;
+        double x2;
         while(!mcPass)
         {
             //Choose x1 and x2 in proper range
-            Q2 = 0.0;
-            while(Q2 < thr*thr)
-            {
-                x1 = (1.0-minx)*rand.Uniform()+minx;
-                x2 = (1.0-minx)*rand.Uniform()+minx;
-                Q2 = x1*x2*SQRTS*SQRTS;
-            }
+            //cout<<"CDFThr: "<<CDFThr<<endl;
+            valXSCDF = rand.Uniform(CDFThr,1);
+            valInstMass = invertCDF(valXSCDF, ENERGYPARTON, CDF, XSPDF, LEN);
+            Q2 = valInstMass * valInstMass;
+            x1x2 = Q2 / (SQRTS * SQRTS);
+            //cout<<"x1x2: "<<x1x2<<endl;
+            valx1CDF = rand.Uniform(0,1);
+            x1 = TMath::Power(x1x2, 1 - valx1CDF);
+            //cout<<"x1: "<<x1<<endl;
+            x2 = x1x2 / x1; 
             mcP = MCW*rand.Uniform();
             double mcTot = 0.0;
             for(int i1 = 21; i1 < 22; i1++)
@@ -196,8 +227,10 @@ int main(int argc, char* argv[])
                 }
                 if(mcPass) break;
             }
-            weight = getLerp(sqrt(Q2), ENERGYPARTON, XS, LEN);
-            if(weight < 0) mcPass = false;
+            if(isweight){
+                weight = mcTot;
+                mcPass = true;
+            }
             pdfN++;
             x1_h->Fill(x1);
             mcTot_h->Fill(mcTot);
@@ -346,7 +379,7 @@ int main(int argc, char* argv[])
         lheF.writeEvent(fileParts,sqrt(Q2), weight);
         myT->Fill();
         NF++;
-        if(NF%(Nevt/100) == 0) cout << "Produced Event " << NF << "  pdfN : " << pdfN << endl;
+        if(NF%(Nevt/10) == 0) cout << "Produced Event " << NF << "  pdfN : " << pdfN << endl;
         //cout << "Produced Event " << NF << "  pdfN : " << pdfN << endl;
     }
 

@@ -32,12 +32,12 @@ void Rambo::Generate(){
         //this->CalculateWeightsMassless();
         this->CalculateWeightsMassive();
         this->CalculateAcceptance();
-        cout<<"Acceptance: "<<(this->acceptance)<<endl;
+        //cout<<"Acceptance: "<<(this->acceptance)<<endl;
         if( rand.Uniform(0,1) < (this->acceptance)){ 
             accept = true;
-            cout<<"Accepted"<<endl;
+            //cout<<"Accepted"<<endl;
         }
-        else cout<<"Rejected"<<endl;
+        //else cout<<"Rejected"<<endl;
     }
     while(!accept);
     this->BoostDaughter();
