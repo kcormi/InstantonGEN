@@ -1,4 +1,4 @@
-# BaryoGEN
+# InstantonGEN
 Compiles with gcc version >= 5.3.0
 Requires ROOT version >= 6.06/01
 Requires LHAPDF == 6.1.6
