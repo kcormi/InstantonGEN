@@ -41,9 +41,13 @@ double getLerp(double energy, const double energylist[], const double values[], 
     return Lerp(value_begin, value_end, (energy-begin)/(end-begin));
 }
 
+void getIntegral(double Integral[], const double energylist[], const double values[], int len){
+     Integral[0] = 0;
+     for(int i = 0; i < len-1; i++) Integral[i+1] = Integral[i] + (values[i] + values[i+1]) * (energylist[i+1] - energylist[i]) / 2;
+}
+
 void getCDF(double CDF[], const double energylist[], const double values[], int len){
-     CDF[0] = 0;
-     for(int i = 0; i < len-1; i++) CDF[i+1] = CDF[i] + (values[i] + values[i+1]) * (energylist[i+1] - energylist[i]) / 2;
+     getIntegral(CDF, energylist, values, len);
      for(int i = 0; i < len-1; i++) CDF[i+1] = CDF[i+1] / CDF[len-1]; 
 }
 

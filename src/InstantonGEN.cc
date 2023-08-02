@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     //read arguements and do conversions and checks on them
     if(argc != ARGS+1 && argc != ARGS+2)
     {
-        cout << "InstantonGEN sqrtS minMass maxweight Nevents Nf Filename [isWeighted (default 1)]" << endl;
+        cout << "InstantonGEN sqrtS minMass maxweight Nevents Nf Filename [isWeighted (default 0)]" << endl;
         return -99;
     }
 
@@ -55,7 +55,7 @@ int main(int argc, char* argv[])
     }
 
     string ofName = string(argv[6]);
-    bool isweight = true;
+    bool isweight = false;
     if(argc == ARGS+2) isweight = atoi(argv[7]);
 
     //Init structures needed during generatation
@@ -91,11 +91,15 @@ int main(int argc, char* argv[])
     TFile *myF = new TFile((ofName+".root").c_str(),"RECREATE","Holds daughters from sphaleron decay");
     LHEWriter lheF(ofName, SQRTS, isweight);
 
+    double XSIntegral[LEN];
+    getIntegral(&XSIntegral[0], ENERGYPARTON, XS, LEN);
     double CDF[LEN];
     getCDF(&CDF[0], ENERGYPARTON, XS, LEN);
     double XSPDF[LEN];
     getPDF(&XSPDF[0], ENERGYPARTON, XS, LEN);
     double CDFThr = getInterpoCDF(thr, ENERGYPARTON, CDF, XSPDF, LEN);
+    double XSIntegralThr = XSIntegral[LEN-1] * (1 - CDFThr);
+
 
     string massList = "Instanton mass list: ";
     for(int i = 0; i < LEN; i++) massList += std::to_string(ENERGYPARTON[i])+"\t";
@@ -222,13 +226,14 @@ int main(int argc, char* argv[])
                     iq2 = i2;
                     //double x2p = pdf->parton(iq2,x2,SQRTS);
                     double x2p = LHApdf->xfxQ2(iq2, x2, Q2)/x2;
+                    //cout<<"x1: "<<x1<<", x2: "<<x2<<", x1p: "<<x1p<<", x2p: "<<x2p<<", x1p*x2p: "<<x1p*x2p<<endl;
                     mcTot += x1p*x2p;
                     if(mcTot > mcP) {mcPass = true; break;}
                 }
                 if(mcPass) break;
             }
             if(isweight){
-                weight = mcTot;
+                weight = mcTot * XSIntegralThr; // pdf of the partons * parton-level XS
                 mcPass = true;
             }
             pdfN++;

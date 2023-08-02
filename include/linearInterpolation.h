@@ -16,6 +16,7 @@ namespace constants {
 double Lerp(double, double, double);
 int searchInterval(double, const double [], int);
 double getLerp(double, const double[], const double [], int);
+void getIntegral(double [], const double [], const double [], int);
 void getCDF(double [], const double [], const double [], int);
 void getPDF(double [], const double [], const double [], int);
 double getInterpoCDF(double,const double [], const double [], const double [], int);
