@@ -24,10 +24,12 @@ https://github.com/cbravo135/BaryoGEN/tree/master
 The RAMBO program for phase space samping is adapted from the Bachelor thesis of C++ implementation of RAMBO:
 https://www.physi.uni-heidelberg.de/Publications/Dressler_Bachelor.pdf
 
-`
+```
 source setup.sh
 make
 ./InstantonGEN 13000 50 5e-4 100 4 testInstanton 1
+```
 or 
+```
 ./InstantonGEN 13000 50 5e-4 100 4 testInstanton 0
-`
+```
