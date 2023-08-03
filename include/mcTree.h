@@ -36,6 +36,8 @@ public :
    Int_t           iq2;
    Double_t        Q2;
    Double_t        momM;
+   Double_t        rapidity;
+   Int_t        nd;
 
    // List of branches
    TBranch        *b_daughtersPt;   //!
@@ -51,6 +53,8 @@ public :
    TBranch        *b_iq2;   //!
    TBranch        *b_Q2;   //!
    TBranch        *b_momM;   //!
+   TBranch        *b_rapidity;
+   TBranch        *b_nd;
 
    mcTree(TTree *tree=0);
    virtual ~mcTree();
@@ -141,6 +145,8 @@ void mcTree::Init(TTree *tree)
    fChain->SetBranchAddress("iq2", &iq2, &b_iq2);
    fChain->SetBranchAddress("Q2", &Q2, &b_Q2);
    fChain->SetBranchAddress("momM", &momM, &b_momM);
+   fChain->SetBranchAddress("rapidity", &rapidity, &b_rapidity);
+   fChain->SetBranchAddress("nd", &nd, &b_nd);
    Notify();
 }
 

@@ -86,17 +86,23 @@ int main(int argc, char* argv[])
     double Q2 = 0.0;
     double momM = 0.0;
     double pz = 0.0;
-
+    double rapidity = 0.0;
+    double st = 0.0;
+    int nd = 0;
     //Init output files
-    TFile *myF = new TFile((ofName+".root").c_str(),"RECREATE","Holds daughters from sphaleron decay");
+    TFile *myF = new TFile((ofName+".root").c_str(),"RECREATE","Holds daughters from instanton decay");
     LHEWriter lheF(ofName, SQRTS, isweight);
 
+    //Prepare for the importance sampling according to the parton-level XS.
+    //Get the integral of parton level XS from the list of differential XS.
     double XSIntegral[LEN];
     getIntegral(&XSIntegral[0], ENERGYPARTON, XS, LEN);
+    //Get the cumulative distribution function and the probability distribution (proportional to parton level XS) of instanton mass
     double CDF[LEN];
     getCDF(&CDF[0], ENERGYPARTON, XS, LEN);
     double XSPDF[LEN];
     getPDF(&XSPDF[0], ENERGYPARTON, XS, LEN);
+    //Get the value of CDF at the lower boundary of mass and the integrated XS above this threshold.
     double CDFThr = getInterpoCDF(thr, ENERGYPARTON, CDF, XSPDF, LEN);
     double XSIntegralThr = XSIntegral[LEN-1] * (1 - CDFThr);
 
@@ -126,14 +132,14 @@ int main(int argc, char* argv[])
     //Initialize histograms for debugging
     TH1D *x1_h = new TH1D("x1_h","x1 inclusive",1000,0.0,1.0);
     TH1D *mcTot_h = new TH1D("mcTot_h","Monte Carlo Probabilities",100,0.0,MCW);
-    //TH1D *sumInterQ3_h = new TH1D("sumInterQ3_h","Intermediate particle charges",21,-10.5,10.5);
-    TH1D *sphM_h = new TH1D("sphM_h","Sphaleron Transition Energy;Invariant Mass [TeV];Events / 100 GeV",int(SQRTS/100.0),0.0,SQRTS/1000.0);
-    TH1D *st_h = new TH1D("st_h","S_{T};S_{T} [TeV];Events / 100 GeV", int(SQRTS/100.0), 0.0, SQRTS/1000.0);
-    TH1D *sphPz_h = new TH1D("sphPz_h","Sphaleron p_{z};p_{z} [GeV];Events / 100 GeV",80,-4000.0,4000.0);
+    TH1D *instantonM_h = new TH1D("instantonM_h","Instanton Transition Energy;Invariant Mass [GeV];Events / 3 GeV",100,0.0,300.0);
+    TH1D *st_h = new TH1D("st_h","S_{T};S_{T} [GeV];Events / 3 GeV", 100.0 , 0.0, 300.0);
+    TH1D *instantonPz_h = new TH1D("instantonPz_h","Instanton p_{z};p_{z} [GeV];Events / 100 GeV",80,-4000.0,4000.0);
+    TH1D *nd_h = new TH1D("nd_h","Daughter multiplicity;Daughter multiplicity;Events", 100.0 , 0.0, 100.0);
     TH1D *outID_h = new TH1D("outID_h","Outgoing PDG IDs;PDG ID;Entries",33,-16.5,16.5);
     TH1D *p1x_h = new TH1D("p1x_h","Parton 1 Momentum Fraction;x_{1};Events / 0.01",60,0.4,1.0);
     TH1D *p1id_h = new TH1D("p1id_h","Parton 1 PDG ID;PDG ID;Events",13,-6.5,6.5);
-
+    TH1D *rapidity_h = new TH1D("instantonRapidity_h","Instanton rapidity",100,-8,8);
     TH2D *inQid_h = new TH2D("inQid_h","Colliding Parton Species;Parton 2 PDG ID;Parton 1 PDG ID",11,-5.5,5.5,11,-5.5,5.5);
     TH2D *frac2D_h = new TH2D("frac2D_h","Parton Momentum Fractions;x_{2};x_{1}",60,0.4,1.0,60,0.4,1.0);
 
@@ -174,6 +180,7 @@ int main(int argc, char* argv[])
     myT->Branch("pz",&pz); 
     myT->Branch("x1",&x1); 
     myT->Branch("x2",&x2); 
+    myT->Branch("rapidity",&rapidity);
     myT->Branch("iq1",&iq1); 
     myT->Branch("iq2",&iq2); 
     myT->Branch("Q2",&Q2); 
@@ -198,17 +205,18 @@ int main(int argc, char* argv[])
         double x1x2;
         double valInstMass;
         double valx1CDF;
-        double x1;
-        double x2;
         while(!mcPass)
         {
             //Choose x1 and x2 in proper range
             //cout<<"CDFThr: "<<CDFThr<<endl;
+            //Importance sampling of the instanton mass according to parton level XS.
             valXSCDF = rand.Uniform(CDFThr,1);
             valInstMass = invertCDF(valXSCDF, ENERGYPARTON, CDF, XSPDF, LEN);
             Q2 = valInstMass * valInstMass;
             x1x2 = Q2 / (SQRTS * SQRTS);
             //cout<<"x1x2: "<<x1x2<<endl;
+            //After getting x1x2 from the instanton mass
+            //Importance sampling of x1 according to f(x1|x1x2) = - 1/(x1 * Ln(x1x2)), when x1~U(0,1), x2~U(0,1)
             valx1CDF = rand.Uniform(0,1);
             x1 = TMath::Power(x1x2, 1 - valx1CDF);
             //cout<<"x1: "<<x1<<endl;
@@ -232,10 +240,14 @@ int main(int argc, char* argv[])
                 }
                 if(mcPass) break;
             }
+
+            //Weight the sample by pdf values of gluons at x1, x2
             if(isweight){
-                weight = mcTot * XSIntegralThr; // pdf of the partons * parton-level XS
+                weight = mcTot * XSIntegralThr; // pdf of the partons * integrated XS(as constant)
                 mcPass = true;
             }
+            //For unweighted genration, mcPass is turned true with probability x1p*x2p/MCW
+            //-> hit-or-miss sampling according to the parton distribution function.
             pdfN++;
             x1_h->Fill(x1);
             mcTot_h->Fill(mcTot);
@@ -243,7 +255,7 @@ int main(int argc, char* argv[])
         }
 
 
-        //Build incoming particles, sphaleron, and prepare to decay
+        //Build incoming particles, instanton, and prepare to decay
         particle partBuf1 = partBase->getParticle(iq1);
         if(iq1 != partBuf1.pid) cout << "iq1 = " << iq1 << " != partBuf.pid = " << partBuf1.pid << endl;
         partBuf1.p4v.SetXYZM(0.0,0.0,x1*SQRTS/2.0,partBuf1.mass);
@@ -252,6 +264,8 @@ int main(int argc, char* argv[])
 
         //Generate vector of outgoing fermionic configuration
         vector<particle> confBuf = confBuild.build(iq1,iq2,Q2,rand.GetSeed(),Nf);
+
+        //Assign the color lines to the daughters
         int Nline = confBuf.size()-Nf+2;
 
         bool color_assigned = false;
@@ -321,19 +335,14 @@ int main(int argc, char* argv[])
         mom = u1 + u2;
         momM = mom.M();
         pz = mom.Pz();
+        rapidity = mom.Rapidity();
+        nd = confBuf.size();
 
         //"Decay" mother to the generated configuration
         Rambo ramboGeneral(confBuf.size(),mom,masses,rand.GetSeed());
         ramboGeneral.Generate();
-        //while(weight > MPW*rand.Uniform())
-        //{
-            //gen.SetDecay(mom, confBuf.size(), &masses[0]);
-            //weight = gen.Generate();
-        //    weight = ramboGeneral.Generate();
-        //    if(weight > MPW) cout << "The code needs to recompiled with a higher MPW" << endl;
-        //}
 
-        //Extract Decay 4-vectors and assign colors to non-spectator quarks
+        //Extract Decay 4-vectors
         for(int ii = 0; ii < confBuf.size(); ii++)
         {
             //TLorentzVector prod = *gen.GetDecay(ii);
@@ -354,6 +363,7 @@ int main(int argc, char* argv[])
         vector<particle> fileParts;
         fileParts.push_back(inParts[0]);
         fileParts.push_back(inParts[1]);
+        st = 0;
 
         for(int i = 0; i < confBuf.size(); i++)
         {
@@ -363,6 +373,7 @@ int main(int argc, char* argv[])
             daughtersE.push_back(confBuf[i].p4v.E());
             daughtersID.push_back(confBuf[i].pid);
             fileParts.push_back(confBuf[i]);
+            st += confBuf[i].p4v.Pt();
         }
 
 
@@ -376,11 +387,13 @@ int main(int argc, char* argv[])
 
         inQid_h->Fill(iq2,iq1);
         frac2D_h->Fill(x2,x1);
-        sphM_h->Fill(momM/1000.0);
-        sphPz_h->Fill(pz);
+        instantonM_h->Fill(momM);
+        instantonPz_h->Fill(pz);
+        st_h->Fill(st);
+        nd_h->Fill(confBuf.size());
         p1x_h->Fill(x1);
         p1id_h->Fill(iq1);
-
+        rapidity_h->Fill(rapidity);
         lheF.writeEvent(fileParts,sqrt(Q2), weight);
         myT->Fill();
         NF++;
@@ -399,9 +412,11 @@ int main(int argc, char* argv[])
     p1x_h->Write();
     p1id_h->Write();
     outID_h->Write();
-    sphM_h->Write();
+    instantonM_h->Write();
     st_h->Write();
-    sphPz_h->Write();
+    nd_h->Write();
+    instantonPz_h->Write();
+    rapidity_h->Write();
     for(int i = 0; i < pt_hv.size(); i++)
     {
         pt_hv[i].Write();
