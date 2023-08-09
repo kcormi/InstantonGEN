@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
     //read arguements and do conversions and checks on them
     if(argc != ARGS+1 && argc != ARGS+2)
     {
-        cout << "InstantonGEN sqrtS minMass maxweight Nevents Nf Filename [isWeighted (default 0)]" << endl;
+        cout << "InstantonGEN sqrtS minMass maxweight Nevents Nf Filename randomSeed [isWeighted (default 0)]" << endl;
         return -99;
     }
 
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 
     string ofName = string(argv[6]);
     bool isweight = false;
-    if(argc == ARGS+2) isweight = atoi(argv[7]);
+    if(argc == ARGS+2) isweight = atoi(argv[8]);
 
     //Init structures needed during generatation
     double maxwt = 0;

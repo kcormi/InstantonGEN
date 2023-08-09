@@ -27,5 +27,5 @@ https://www.physi.uni-heidelberg.de/Publications/Dressler_Bachelor.pdf
 ```
 source setup.sh
 make
-./InstantonGEN 13000 50 8e8 10000 4 testInstanton 0 <random Seed>
+./InstantonGEN 13000 50 8e8 10000 4 testInstanton 123456 0 
 ```
