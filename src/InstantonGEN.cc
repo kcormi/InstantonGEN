@@ -22,7 +22,7 @@
 #include "../include/LHEWriter.h"
 #include "../include/rambo.h"
 #include "../include/linearInterpolation.h"
-#define ARGS 6
+#define ARGS 7
 #define MPW 5.0e-2
 
 using namespace LHAPDF;
@@ -64,7 +64,8 @@ int main(int argc, char* argv[])
 
     int NF = 0;
     TRandom3 rand;
-    rand.SetSeed(0);
+    int rndmSeed = atoi(argv[7]);
+    rand.SetSeed(rndmSeed);
     particleBase *partBase = new particleBase();
     configBuilder confBuild;
     vector<double> daughtersPt;
